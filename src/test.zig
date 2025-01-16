@@ -10,10 +10,7 @@ pub fn main() !void {
 
     var server = try addr.listen(.{});
 
-    start_server(&server);
-}
 
-fn start_server(server: *net.Server) void {
     while (true) {
         var connection = server.accept() catch |err| {
             std.debug.print("Connection to client interrupted: {}\n", .{err});
@@ -34,6 +31,10 @@ fn start_server(server: *net.Server) void {
         };
     }
 }
+
+// fn start_server(server: *net.Server) void {
+
+// }
 
 fn handle_request(request: *http.Server.Request) !void {
     if (std.mem.eql(u8, request.head.target, "/")) {

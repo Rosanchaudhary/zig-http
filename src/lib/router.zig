@@ -2,27 +2,7 @@ const std = @import("std");
 const net = std.net;
 const http = std.http;
 
-
-pub const MyError = error{ 
-    SystemResources, 
-    Unexpected, 
-    AccessDenied, 
-    WouldBlock, 
-    ConnectionResetByPeer, 
-    DiskQuota, 
-    FileTooBig, 
-    InputOutput, 
-    NoSpaceLeft, 
-    DeviceBusy, 
-    InvalidArgument, 
-    BrokenPipe, 
-    OperationAborted, 
-    NotOpenForWriting, 
-    LockViolation, 
-    InvalidInput, 
-    InvalidBody, 
-    OutOfMemory 
-    };
+pub const MyError = error{ SystemResources, Unexpected, AccessDenied, WouldBlock, ConnectionResetByPeer, DiskQuota, FileTooBig, InputOutput, NoSpaceLeft, DeviceBusy, InvalidArgument, BrokenPipe, OperationAborted, NotOpenForWriting, LockViolation, InvalidInput, InvalidBody, OutOfMemory, Overflow, InvalidEnd, InvalidCharacter, Incomplete, NonCanonical, PermissionDenied, AddressFamilyNotSupported, ProtocolFamilyNotAvailable, ProcessFdQuotaExceeded, SystemFdQuotaExceeded, ProtocolNotSupported, SocketTypeNotSupported, AddressInUse, AddressNotAvailable, SymLinkLoop, NameTooLong, FileNotFound, NotDir, ReadOnlyFileSystem, NetworkSubsystemFailed, FileDescriptorNotASocket, AlreadyBound, OperationNotSupported, AlreadyConnected, SocketNotBound, InvalidProtocolOption, TimeoutTooBig, NoDevice };
 
 const Point = struct {
     name: []const u8,
@@ -42,7 +22,6 @@ pub const Router = struct {
         const routerName = try mergeStrings(&self.allocator, method, name);
         defer self.allocator.free(routerName);
         try self.point.put(routerName, .{ .name = name, .method = method, .func = funcValue });
-
     }
 
     pub fn handleRequest(self: *Router, request: *http.Server.Request) MyError!void {

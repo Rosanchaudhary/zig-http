@@ -5,7 +5,8 @@ const Router = @import("lib/router.zig").Router;
 const MyError = @import("lib/router.zig").MyError;
 const bodyParser = @import("lib/parseBody.zig");
 const MyServer = @import("lib/server.zig").MyServer;
-const homeRouter = @import("routers/home.zig");
+const rootRouterFunc = @import("routers/home.zig");
+const homeRouterFunc = @import("routers/root.zig");
 
 pub fn main() !void {
     var allocator = std.heap.page_allocator;
@@ -13,20 +14,22 @@ pub fn main() !void {
     defer server.deinit();
     try server.createServer();
 
-    var router = Router.init(&allocator);
-    defer router.deinit();
+    var rootRouter = Router.init(&allocator);
+    defer rootRouter.deinit();
 
-    try router.addRoute("/", "GET", &homeRouter.home);
-    try router.addRoute("/good", "GET", &homeRouter.hello);
-    try router.addRoute("/good", "POST", &homeRouter.helloPost);
+    try rootRouter.addRoute("/", "GET", &rootRouterFunc.home);
+    try rootRouter.addRoute("/good", "GET", &rootRouterFunc.hello);
+    try rootRouter.addRoute("/good", "POST", &rootRouterFunc.helloPost);
 
-    var it = router.route.iterator();
-    while (it.next()) |entry| {
-        std.debug.print("Key: {s}, Value: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.*.name });
-    }
+    var homeRouter = Router.init(&allocator);
+    defer homeRouter.deinit();
 
-    try server.addRouter("/", &router);
-    try server.addRouter("/home", &router);
+    try homeRouter.addRoute("/", "GET", &homeRouterFunc.home);
+    try homeRouter.addRoute("/good", "GET", &homeRouterFunc.hello);
+    try homeRouter.addRoute("/nice", "POST", &homeRouterFunc.helloPost);
 
-    try server.startServer(&router);
+    try server.addRouter("/", &rootRouter);
+    try server.addRouter("/home", &homeRouter);
+
+    try server.startServer();
 }

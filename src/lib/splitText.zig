@@ -54,8 +54,8 @@ pub fn splitBySecondIndex(s: []const u8, char: u8) [2][]const u8 {
         arr[1] = "/";
         return arr;
     } else if (secondIndex == -1) {
-        arr[0] = s;
-        arr[1] = "/";
+        arr[0] = "/";
+        arr[1] = s;
         return arr;
     } else {
         arr[0] = s[0..@intCast(secondIndex)];

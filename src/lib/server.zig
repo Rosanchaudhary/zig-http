@@ -31,7 +31,7 @@ pub const MyServer = struct {
         std.debug.print("Server started at http://{s}:{}\n", .{ self.address, self.port });
     }
 
-    pub fn startServer(self: *MyServer, router: *Router) !void {
+    pub fn startServer(self: *MyServer) !void {
         while (true) {
             var connection = self.server.?.accept() catch |err| {
                 std.debug.print("Connection to client interrupted: {}\n", .{err});
@@ -46,8 +46,8 @@ pub const MyServer = struct {
                 std.debug.print("Could not read head: {}\n", .{err});
                 continue;
             };
-            //try router.handleRequest(&request);
-            try handleRouter(self, &request, router);
+
+            try handleRouter(self, &request);
         }
     }
 
@@ -55,7 +55,7 @@ pub const MyServer = struct {
         try self.routers.put(name, .{ .name = name, .router = router });
     }
 
-    fn handleRouter(self: *MyServer, request: *http.Server.Request, router: *Router) MyError!void {
+    fn handleRouter(self: *MyServer, request: *http.Server.Request) MyError!void {
         const allocator = std.heap.page_allocator;
         const routerName = request.head.target;
         std.debug.print("The target is {s}", .{routerName});
@@ -68,7 +68,7 @@ pub const MyServer = struct {
             const methodString = getMethod(request.head.method);
             const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
 
-            const routerValue = router.route.get(subRouterName);
+            const routerValue = value.?.router.route.get(subRouterName);
             if (routerValue) |_| {
                 try routerValue.?.func(request);
             } else {

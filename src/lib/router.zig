@@ -22,60 +22,7 @@ pub const Router = struct {
         const routerName = try mergeStrings(&self.allocator, method, name);
 
         try self.route.put(routerName, .{ .name = name, .method = method, .func = funcValue });
-                // defer self.allocator.free(routerName);
-    }
-
-    pub fn handleRequest(self: *Router, request: *http.Server.Request, targetString: []const u8) MyError!void {
-        const methodString = getMethod(request.head.method);
-        const routerName = try mergeStrings(&self.allocator, methodString, targetString);
-        defer self.allocator.free(routerName);
-        const value = self.route.get("/good");
-        std.debug.print("The value is {s} \n", .{routerName});
-
-        if (value) |v| {
-            try v.func(request); // Call the function using `.*` to dereference the routeer
-        } else {
-            try request.respond("404 Not Found", .{ .status = http.Status.bad_request });
-        }
-    }
-
-    fn setMethod(method: []const u8) http.Method {
-        if (std.mem.eql(u8, method, "GET")) {
-            return http.Method.GET;
-        } else if (std.mem.eql(u8, method, "POST")) {
-            return http.Method.POST;
-        } else if (std.mem.eql(u8, method, "PUT")) {
-            return http.Method.PUT;
-        } else if (std.mem.eql(u8, method, "DELETE")) {
-            return http.Method.DELETE;
-        } else if (std.mem.eql(u8, method, "PATCH")) {
-            return http.Method.PATCH;
-        } else if (std.mem.eql(u8, method, "HEAD")) {
-            return http.Method.HEAD;
-        } else if (std.mem.eql(u8, method, "OPTIONS")) {
-            return http.Method.OPTIONS;
-        } else if (std.mem.eql(u8, method, "TRACE")) {
-            return http.Method.TRACE;
-        } else if (std.mem.eql(u8, method, "CONNECT")) {
-            return http.Method.CONNECT;
-        } else {
-            return http.Method.GET; // Default to GET if the method is unknown
-        }
-    }
-
-    fn getMethod(method: http.Method) []const u8 {
-        switch (method) {
-            .GET => return "GET",
-            .POST => return "POST",
-            .PUT => return "PUT",
-            .DELETE => return "DELETE",
-            .PATCH => return "PATCH",
-            .HEAD => return "HEAD",
-            .OPTIONS => return "OPTIONS",
-            .TRACE => return "TRACE",
-            .CONNECT => return "CONNECT",
-            else => return "UNKNOWN", // Fallback for unsupported or custom methods
-        }
+        // defer self.allocator.free(routerName);
     }
 
     fn mergeStrings(allocator: *const std.mem.Allocator, string1: []const u8, string2: []const u8) ![]u8 {

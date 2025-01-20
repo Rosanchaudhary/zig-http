@@ -7,10 +7,10 @@ const bodyParser = @import("lib/parseBody.zig");
 const MyServer = @import("lib/server.zig").MyServer;
 const homeRouter = @import("routers/home.zig");
 
-
 pub fn main() !void {
     var allocator = std.heap.page_allocator;
-    var server = MyServer.init("127.0.0.1", 9090);
+    var server = MyServer.init(&allocator, "127.0.0.1", 9090);
+    defer server.deinit();
     try server.createServer();
 
     var router = Router.init(&allocator);
@@ -19,6 +19,8 @@ pub fn main() !void {
     try router.addRoute("/", "GET", &homeRouter.home);
     try router.addRoute("/good", "GET", &homeRouter.hello);
     try router.addRoute("/good", "POST", &homeRouter.helloPost);
+
+    try server.addRouter("/home", &router);
 
     try server.startServer(&router);
 }

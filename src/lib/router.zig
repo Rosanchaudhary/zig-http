@@ -4,33 +4,36 @@ const http = std.http;
 
 pub const MyError = error{ SystemResources, Unexpected, AccessDenied, WouldBlock, ConnectionResetByPeer, DiskQuota, FileTooBig, InputOutput, NoSpaceLeft, DeviceBusy, InvalidArgument, BrokenPipe, OperationAborted, NotOpenForWriting, LockViolation, InvalidInput, InvalidBody, OutOfMemory, Overflow, InvalidEnd, InvalidCharacter, Incomplete, NonCanonical, PermissionDenied, AddressFamilyNotSupported, ProtocolFamilyNotAvailable, ProcessFdQuotaExceeded, SystemFdQuotaExceeded, ProtocolNotSupported, SocketTypeNotSupported, AddressInUse, AddressNotAvailable, SymLinkLoop, NameTooLong, FileNotFound, NotDir, ReadOnlyFileSystem, NetworkSubsystemFailed, FileDescriptorNotASocket, AlreadyBound, OperationNotSupported, AlreadyConnected, SocketNotBound, InvalidProtocolOption, TimeoutTooBig, NoDevice };
 
-const Point = struct {
+const Route = struct {
     name: []const u8,
     method: []const u8,
     func: *const fn (*http.Server.Request) MyError!void,
 };
 
 pub const Router = struct {
-    point: std.StringHashMap(Point),
+    route: std.StringHashMap(Route),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: *const std.mem.Allocator) Router {
-        return Router{ .point = std.StringHashMap(Point).init(allocator.*), .allocator = allocator.* };
+        return Router{ .route = std.StringHashMap(Route).init(allocator.*), .allocator = allocator.* };
     }
 
     pub fn addRoute(self: *Router, name: []const u8, method: []const u8, funcValue: *const fn (*http.Server.Request) MyError!void) !void {
         const routerName = try mergeStrings(&self.allocator, method, name);
         defer self.allocator.free(routerName);
-        try self.point.put(routerName, .{ .name = name, .method = method, .func = funcValue });
+        std.debug.print("The input value is {s} \n", .{routerName});
+        try self.route.put(name, .{ .name = name, .method = method, .func = funcValue });
     }
 
-    pub fn handleRequest(self: *Router, request: *http.Server.Request) MyError!void {
+    pub fn handleRequest(self: *Router, request: *http.Server.Request, targetString: []const u8) MyError!void {
         const methodString = getMethod(request.head.method);
-        const routerName = try mergeStrings(&self.allocator, methodString, request.head.target);
+        const routerName = try mergeStrings(&self.allocator, methodString, targetString);
         defer self.allocator.free(routerName);
-        const value = self.point.get(routerName);
+        const value = self.route.get("/good");
+        std.debug.print("The value is {s} \n", .{routerName});
+
         if (value) |v| {
-            try v.func(request); // Call the function using `.*` to dereference the pointer
+            try v.func(request); // Call the function using `.*` to dereference the routeer
         } else {
             try request.respond("404 Not Found", .{ .status = http.Status.bad_request });
         }
@@ -84,6 +87,6 @@ pub const Router = struct {
     }
 
     pub fn deinit(self: *Router) void {
-        self.point.deinit();
+        self.route.deinit();
     }
 };

@@ -20,8 +20,13 @@ pub fn main() !void {
     try router.addRoute("/good", "GET", &homeRouter.hello);
     try router.addRoute("/good", "POST", &homeRouter.helloPost);
 
+    var it = router.route.iterator();
+    while (it.next()) |entry| {
+        std.debug.print("Key: {s}, Value: {s}\n", .{ entry.key_ptr.*, entry.value_ptr.*.name });
+    }
+
+    try server.addRouter("/", &router);
     try server.addRouter("/home", &router);
 
     try server.startServer(&router);
 }
-

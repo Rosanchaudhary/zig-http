@@ -20,9 +20,9 @@ pub const Router = struct {
 
     pub fn addRoute(self: *Router, name: []const u8, method: []const u8, funcValue: *const fn (*http.Server.Request) MyError!void) !void {
         const routerName = try mergeStrings(&self.allocator, method, name);
-        defer self.allocator.free(routerName);
-        std.debug.print("The input value is {s} \n", .{routerName});
-        try self.route.put(name, .{ .name = name, .method = method, .func = funcValue });
+
+        try self.route.put(routerName, .{ .name = name, .method = method, .func = funcValue });
+                // defer self.allocator.free(routerName);
     }
 
     pub fn handleRequest(self: *Router, request: *http.Server.Request, targetString: []const u8) MyError!void {

@@ -67,16 +67,15 @@ pub const MyServer = struct {
         if (value) |_| {
             const methodString = getMethod(request.head.method);
             const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
-            defer allocator.free(subRouterName);
-            const routerValue = router.route.get("/good");
+
+            const routerValue = router.route.get(subRouterName);
             if (routerValue) |_| {
                 try routerValue.?.func(request);
-            }else{
-                 try request.respond("404 Not Found", .{ .status = http.Status.bad_request });
+            } else {
+                try request.respond("404 Sub Route Not Found", .{ .status = http.Status.bad_request });
             }
-
         } else {
-            try request.respond("404 Not Found", .{ .status = http.Status.bad_request });
+            try request.respond("404 Route Not Found", .{ .status = http.Status.bad_request });
         }
     }
 

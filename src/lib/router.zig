@@ -1,13 +1,14 @@
 const std = @import("std");
 const net = std.net;
 const http = std.http;
+const RequestBody = @import("server.zig").RequestBody;
 
 pub const MyError = error{ SystemResources, Unexpected, AccessDenied, WouldBlock, ConnectionResetByPeer, DiskQuota, FileTooBig, InputOutput, NoSpaceLeft, DeviceBusy, InvalidArgument, BrokenPipe, OperationAborted, NotOpenForWriting, LockViolation, InvalidInput, InvalidBody, OutOfMemory, Overflow, InvalidEnd, InvalidCharacter, Incomplete, NonCanonical, PermissionDenied, AddressFamilyNotSupported, ProtocolFamilyNotAvailable, ProcessFdQuotaExceeded, SystemFdQuotaExceeded, ProtocolNotSupported, SocketTypeNotSupported, AddressInUse, AddressNotAvailable, SymLinkLoop, NameTooLong, FileNotFound, NotDir, ReadOnlyFileSystem, NetworkSubsystemFailed, FileDescriptorNotASocket, AlreadyBound, OperationNotSupported, AlreadyConnected, SocketNotBound, InvalidProtocolOption, TimeoutTooBig, NoDevice };
 
 pub const Route = struct {
     name: []const u8,
     method: []const u8,
-    func: *const fn (*http.Server.Request) MyError!void,
+    func: *const fn (RequestBody) MyError!void,
 };
 
 pub const Router = struct {
@@ -18,7 +19,7 @@ pub const Router = struct {
         return Router{ .route = std.StringHashMap(Route).init(allocator.*), .allocator = allocator.* };
     }
 
-    pub fn addRoute(self: *Router, name: []const u8, method: []const u8, funcValue: *const fn (*http.Server.Request) MyError!void) !void {
+    pub fn addRoute(self: *Router, name: []const u8, method: []const u8, funcValue: *const fn (RequestBody) MyError!void) !void {
         const routerName = try mergeStrings(&self.allocator, method, name);
 
         try self.route.put(routerName, .{ .name = name, .method = method, .func = funcValue });

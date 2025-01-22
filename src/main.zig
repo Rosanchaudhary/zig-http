@@ -1,7 +1,4 @@
 
-
-
-
 const std = @import("std");
 const net = std.net;
 const http = std.http;
@@ -11,6 +8,8 @@ const bodyParser = @import("lib/parseBody.zig");
 const MyServer = @import("lib/server.zig").MyServer;
 const rootRouterFunc = @import("routers/home.zig");
 const homeRouterFunc = @import("routers/root.zig");
+
+const HandlerFn = fn(context: anytype) void;
 
 pub fn main() !void {
     var allocator = std.heap.page_allocator;

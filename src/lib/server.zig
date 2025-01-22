@@ -5,6 +5,9 @@ const Router = @import("router.zig").Router;
 const Route = @import("router.zig").Route;
 const MyError = @import("router.zig").MyError;
 const splitText = @import("splitText.zig");
+const bodyParser = @import("parseBody.zig");
+
+pub const RequestBody = struct { res: *http.Server.Request, body: []const u8, params: std.StringHashMap([]const u8) };
 
 const Routers = struct {
     name: []const u8,
@@ -68,14 +71,17 @@ pub const MyServer = struct {
         if (value) |_| {
             const methodString = getMethod(request.head.method);
             const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
-            const routerValue = try matchRoute(&allocator, value.?.router, subRouterName);
-
+            var params = std.StringHashMap([]const u8).init(allocator);
+            defer params.deinit();
+            const routerValue = try matchRoute(value.?.router, subRouterName, &params);
 
             //const routerValue = value.?.router.route.get(subRouterName);
-            
-            if (routerValue) |_| {
 
-                try routerValue.?.func(request);
+            if (routerValue) |_| {
+                const body = bodyParser.extractBody(request.server.read_buffer);
+                const requestBody = RequestBody{ .res = request, .body = body, .params = params };
+
+                try routerValue.?.func(requestBody);
             } else {
                 try request.respond("404 Sub Route Not Found", .{ .status = http.Status.bad_request });
             }
@@ -84,18 +90,12 @@ pub const MyServer = struct {
         }
     }
 
-    fn matchRoute(
-        allocator:*const std.mem.Allocator,
-        routes: *Router,
-        path: []const u8,
-    ) !?Route {
+    fn matchRoute(routes: *Router, path: []const u8, params: *std.StringHashMap([]const u8)) !?Route {
         var it = routes.route.iterator();
+
         while (it.next()) |entry| {
-            var params =  std.StringHashMap([]const u8).init(allocator.*);
-            defer params.deinit();
             const routePath = entry.key_ptr.*;
             const route = entry.value_ptr.*;
-            
 
             var routeParts = std.mem.split(u8, routePath, "/");
             var routerPartsTemp = routeParts;
@@ -114,19 +114,21 @@ pub const MyServer = struct {
                 requestPartscount += 1;
             }
 
-            if (requestPartscount == routerPartscount) {
-                while (routerPartsTemp.next()) |routePart| {
-                    const requestPart = requestPartsTemp.next().?;
-                    if (std.mem.startsWith(u8, routePart, ":")) {
-                        const paramName = routePart[1..];
-                        std.debug.print("The params is {s}:{s}", .{ paramName, requestPart });
-                        try params.put(paramName, requestPart);
-                        return route;
-                    } else if (!std.mem.eql(u8, routePart, requestPart)) {
-                        return route;
-                    }
+            if (requestPartscount != routerPartscount) continue;
+
+            var allMatch: bool = true;
+
+            while (routerPartsTemp.next()) |routePart| {
+                const requestPart = requestPartsTemp.next().?;
+                if (std.mem.startsWith(u8, routePart, ":")) {
+                    const paramName = routePart[1..];
+                    try params.put(paramName, requestPart);
+                    std.debug.print("Counts {s} : {s}\n", .{ paramName, requestPart });
+                } else if (!std.mem.eql(u8, routePart, requestPart)) {
+                    allMatch = false;
                 }
             }
+            if (allMatch) return route;
         }
         return null;
     }

@@ -65,6 +65,7 @@ pub const MyServer = struct {
         const routerName = request.head.target;
 
         const values = splitText.splitBySecondIndex(routerName, '/');
+        std.debug.print("The split values are {s} {s}", .{values[0],values[1]});
 
         const value = self.routers.get(values[0]);
 
@@ -123,7 +124,6 @@ pub const MyServer = struct {
                 if (std.mem.startsWith(u8, routePart, ":")) {
                     const paramName = routePart[1..];
                     try params.put(paramName, requestPart);
-                    std.debug.print("Counts {s} : {s}\n", .{ paramName, requestPart });
                 } else if (!std.mem.eql(u8, routePart, requestPart)) {
                     allMatch = false;
                 }

@@ -4,7 +4,7 @@ const http = std.http;
 
 pub const MyError = error{ SystemResources, Unexpected, AccessDenied, WouldBlock, ConnectionResetByPeer, DiskQuota, FileTooBig, InputOutput, NoSpaceLeft, DeviceBusy, InvalidArgument, BrokenPipe, OperationAborted, NotOpenForWriting, LockViolation, InvalidInput, InvalidBody, OutOfMemory, Overflow, InvalidEnd, InvalidCharacter, Incomplete, NonCanonical, PermissionDenied, AddressFamilyNotSupported, ProtocolFamilyNotAvailable, ProcessFdQuotaExceeded, SystemFdQuotaExceeded, ProtocolNotSupported, SocketTypeNotSupported, AddressInUse, AddressNotAvailable, SymLinkLoop, NameTooLong, FileNotFound, NotDir, ReadOnlyFileSystem, NetworkSubsystemFailed, FileDescriptorNotASocket, AlreadyBound, OperationNotSupported, AlreadyConnected, SocketNotBound, InvalidProtocolOption, TimeoutTooBig, NoDevice };
 
-const Route = struct {
+pub const Route = struct {
     name: []const u8,
     method: []const u8,
     func: *const fn (*http.Server.Request) MyError!void,

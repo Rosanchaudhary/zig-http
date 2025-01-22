@@ -2,6 +2,7 @@ const std = @import("std");
 const net = std.net;
 const http = std.http;
 const Router = @import("router.zig").Router;
+const Route = @import("router.zig").Route;
 const MyError = @import("router.zig").MyError;
 const splitText = @import("splitText.zig");
 
@@ -11,13 +12,14 @@ const Routers = struct {
 };
 
 pub const MyServer = struct {
+    allocator: std.mem.Allocator,
     address: []const u8,
     port: u16,
     server: ?net.Server,
     routers: std.StringHashMap(Routers),
 
     pub fn init(allocator: *const std.mem.Allocator, address: []const u8, port: u16) MyServer {
-        return MyServer{ .address = address, .port = port, .server = null, .routers = std.StringHashMap(Routers).init(allocator.*) };
+        return MyServer{ .allocator = allocator.*, .address = address, .port = port, .server = null, .routers = std.StringHashMap(Routers).init(allocator.*) };
     }
 
     pub fn deinit(self: *MyServer) void {
@@ -58,7 +60,6 @@ pub const MyServer = struct {
     fn handleRouter(self: *MyServer, request: *http.Server.Request) MyError!void {
         const allocator = std.heap.page_allocator;
         const routerName = request.head.target;
-        std.debug.print("The target is {s}", .{routerName});
 
         const values = splitText.splitBySecondIndex(routerName, '/');
 
@@ -67,9 +68,13 @@ pub const MyServer = struct {
         if (value) |_| {
             const methodString = getMethod(request.head.method);
             const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
+            const routerValue = try matchRoute(&allocator, value.?.router, subRouterName);
 
-            const routerValue = value.?.router.route.get(subRouterName);
+
+            //const routerValue = value.?.router.route.get(subRouterName);
+            
             if (routerValue) |_| {
+
                 try routerValue.?.func(request);
             } else {
                 try request.respond("404 Sub Route Not Found", .{ .status = http.Status.bad_request });
@@ -77,6 +82,53 @@ pub const MyServer = struct {
         } else {
             try request.respond("404 Route Not Found", .{ .status = http.Status.bad_request });
         }
+    }
+
+    fn matchRoute(
+        allocator:*const std.mem.Allocator,
+        routes: *Router,
+        path: []const u8,
+    ) !?Route {
+        var it = routes.route.iterator();
+        while (it.next()) |entry| {
+            var params =  std.StringHashMap([]const u8).init(allocator.*);
+            defer params.deinit();
+            const routePath = entry.key_ptr.*;
+            const route = entry.value_ptr.*;
+            
+
+            var routeParts = std.mem.split(u8, routePath, "/");
+            var routerPartsTemp = routeParts;
+            var requestParts = std.mem.split(u8, path, "/");
+            var requestPartsTemp = requestParts;
+
+            var routerPartscount: usize = 0;
+            while (routeParts.next()) |part| {
+                _ = part;
+                routerPartscount += 1;
+            }
+
+            var requestPartscount: usize = 0;
+            while (requestParts.next()) |part| {
+                _ = part;
+                requestPartscount += 1;
+            }
+
+            if (requestPartscount == routerPartscount) {
+                while (routerPartsTemp.next()) |routePart| {
+                    const requestPart = requestPartsTemp.next().?;
+                    if (std.mem.startsWith(u8, routePart, ":")) {
+                        const paramName = routePart[1..];
+                        std.debug.print("The params is {s}:{s}", .{ paramName, requestPart });
+                        try params.put(paramName, requestPart);
+                        return route;
+                    } else if (!std.mem.eql(u8, routePart, requestPart)) {
+                        return route;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     fn getMethod(method: http.Method) []const u8 {

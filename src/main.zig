@@ -1,3 +1,7 @@
+
+
+
+
 const std = @import("std");
 const net = std.net;
 const http = std.http;
@@ -26,7 +30,7 @@ pub fn main() !void {
 
     try homeRouter.addRoute("/", "GET", &homeRouterFunc.home);
     try homeRouter.addRoute("/good", "GET", &homeRouterFunc.hello);
-    try homeRouter.addRoute("/nice", "POST", &homeRouterFunc.helloPost);
+    try homeRouter.addRoute("/nice/:id", "POST", &homeRouterFunc.helloPost);
 
     try server.addRouter("/", &rootRouter);
     try server.addRouter("/home", &homeRouter);

@@ -61,34 +61,90 @@ pub const MyServer = struct {
     }
 
     fn handleRouter(self: *MyServer, request: *http.Server.Request) MyError!void {
-        const allocator = std.heap.page_allocator;
-        const routerName = request.head.target;
+        const path = request.head.target;
 
-        const values = splitText.splitBySecondIndex(routerName, '/');
-        std.debug.print("The split values are {s} {s}", .{values[0],values[1]});
+        if (isFileRoute(path)) {
+            const fs_allocator = std.heap.page_allocator;
 
-        const value = self.routers.get(values[0]);
+            // Define the base directory where static files are located
+            const static_dir: []const u8 = "public";
 
-        if (value) |_| {
-            const methodString = getMethod(request.head.method);
-            const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
-            var params = std.StringHashMap([]const u8).init(allocator);
-            defer params.deinit();
-            const routerValue = try matchRoute(value.?.router, subRouterName, &params);
+            // Construct the full file path
+            const full_path_buf = try std.fs.path.join(fs_allocator, &.{ static_dir, path });
+            defer fs_allocator.free(full_path_buf);
 
-            //const routerValue = value.?.router.route.get(subRouterName);
+            const file_path = full_path_buf[0..];
+            std.debug.print("File path is {s}\n", .{file_path});
+            // Open the file
+            var file = std.fs.cwd().openFile(file_path, .{}) catch |err| {
+                std.debug.print("File not found: {}\n", .{err});
+                try request.respond("404 Not Found\n", .{});
+                return;
+            };
+            defer file.close();
 
-            if (routerValue) |_| {
-                const body = bodyParser.extractBody(request.server.read_buffer);
-                const requestBody = RequestBody{ .res = request, .body = body, .params = params };
+            // Read the file contents
 
-                try routerValue.?.func(requestBody);
-            } else {
-                try request.respond("404 Sub Route Not Found", .{ .status = http.Status.bad_request });
-            }
+            const file_size = try file.getEndPos();
+            const file_buffer = try fs_allocator.alloc(u8, file_size);
+            defer fs_allocator.free(file_buffer);
+
+            _ = try file.readAll(file_buffer);
+
+            // Determine the content type based on the file extension
+            const extension = get_extension(file_path);
+            const content_type = get_content_type(extension);
+
+            std.debug.print("Handling request for {s} {s}\n", .{ request.head.target, content_type });
+            // Respond with the file contents
+            try request.respond(file_buffer, .{});
         } else {
-            try request.respond("404 Route Not Found", .{ .status = http.Status.bad_request });
+            const allocator = std.heap.page_allocator;
+            const routerName = request.head.target;
+
+            const values = splitText.splitBySecondIndex(routerName, '/');
+            std.debug.print("The split values are {s} {s}", .{ values[0], values[1] });
+
+            const value = self.routers.get(values[0]);
+
+            if (value) |_| {
+                const methodString = getMethod(request.head.method);
+                const subRouterName = try mergeStrings(&allocator, methodString, values[1]);
+                var params = std.StringHashMap([]const u8).init(allocator);
+                defer params.deinit();
+                const routerValue = try matchRoute(value.?.router, subRouterName, &params);
+
+                //const routerValue = value.?.router.route.get(subRouterName);
+
+                if (routerValue) |_| {
+                    const body = bodyParser.extractBody(request.server.read_buffer);
+                    const requestBody = RequestBody{ .res = request, .body = body, .params = params };
+
+                    try routerValue.?.func(requestBody);
+                } else {
+                    try request.respond("404 Sub Route Not Found", .{ .status = http.Status.bad_request });
+                }
+            } else {
+                try request.respond("404 Route Not Found", .{ .status = http.Status.bad_request });
+            }
         }
+    }
+
+    fn isFileRoute(path: []const u8) bool {
+        // Look for common file extensions
+        const extensions = [_][]const u8{
+            ".png", ".jpg", ".jpeg", ".gif", ".svg", // Image files
+            ".css", ".js", ".html", ".json", // Web assets
+            ".txt", ".pdf", ".zip", ".rar", // Miscellaneous
+        };
+
+        for (extensions) |ext| {
+            if (std.mem.endsWith(u8, path, ext)) {
+                return true;
+            }
+        }
+
+        return false; // No matching extension found
     }
 
     fn matchRoute(routes: *Router, path: []const u8, params: *std.StringHashMap([]const u8)) !?Route {
@@ -154,5 +210,21 @@ pub const MyServer = struct {
         std.mem.copyForwards(u8, buffer[0..string1.len], string1);
         std.mem.copyForwards(u8, buffer[string1.len..], string2);
         return buffer;
+    }
+
+    fn get_extension(file_path: []const u8) []const u8 {
+        const dot_index = std.mem.lastIndexOf(u8, file_path, ".");
+        return if (dot_index != null) file_path[dot_index.? + 1 ..] else "";
+    }
+
+    fn get_content_type(extension: []const u8) []const u8 {
+        if (std.mem.eql(u8, extension, "html")) return "text/html";
+        if (std.mem.eql(u8, extension, "css")) return "text/css";
+        if (std.mem.eql(u8, extension, "js")) return "application/javascript";
+        if (std.mem.eql(u8, extension, "png")) return "image/png";
+        if (std.mem.eql(u8, extension, "jpg") or std.mem.eql(u8, extension, "jpeg")) return "image/jpeg";
+        if (std.mem.eql(u8, extension, "gif")) return "image/gif";
+        if (std.mem.eql(u8, extension, "svg")) return "image/svg+xml";
+        return "application/octet-stream";
     }
 };
